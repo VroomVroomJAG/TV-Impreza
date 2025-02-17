@@ -1,0 +1,33 @@
+html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PDF Viewer</title>
+  <script src="build/pdf.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'build/pdf.worker.js';
+  </script>
+</head>
+<body>
+  <div id="pdf-container"></div>
+  <script>
+    const pdfUrl = "https://vroomvroomjag.github.io/TV-Impreza/MY24+Crosstrek+Accessories+Brochure_25July.pdf";
+    pdfjsLib.getDocument(pdfUrl).promise.then(pdfDoc => {
+      pdfDoc.getPage(2).then(page => {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        document.getElementById('pdf-container').appendChild(canvas);
+
+        const viewport = page.getViewport({ scale: 1.5 });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        page.render({ canvasContext: context, viewport: viewport }).promise.then(() => {
+          console.log("Second page rendered");
+        });
+      });
+    });
+  </script>
+</body>
+</html>
