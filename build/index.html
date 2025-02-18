@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Viewer</title>
+    <style>
+        body { text-align: center; font-family: Arial, sans-serif; background-color: black; }
+        canvas { display: block; margin: 10px auto; border: 1px solid #ccc; }
+        #controls { margin: 20px 0; }
+        button { padding: 10px 20px; font-size: 16px; }
+        #pdf-container { position: relative; }
+        .next-page { display: none; position: absolute; top: 0; left: 0; }
+    </style>
+</head>
+<body>
+    <h1 style="color: white;">PDF Viewer</h1>
+    <div id="pdf-container">
+        <!-- Pre-rendered next page will be here -->
+        <canvas class="next-page"></canvas>
+        <canvas class="current-page"></canvas>
+    </div>
+    <div id="controls">
+        <button id="prevPage">Previous</button>
+        <button id="nextPage">Next</button>
+    </div>
+
+    <script type="module">
+        import * as pdfjsLib from './pdf.mjs';
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = './pdf.worker.mjs';
+
+        const pdfUrl = "https://vroomvroomjag.github.io/TV-Impreza/MY24+Crosstrek+Accessories+Brochure_25July.pdf";
+        let pdf = null;
+        let currentPage = 1;
+        let nextPage = 2; // Track the next page in the background
+        let currentCanvas = document.querySelector('.current-page');
+        let nextCanvas = document.querySelector('.next-page');
+
+        async function loadPDF() {
+            const loadingTask = pdfjsLib.getDocument(pdfUrl);
+            pdf = await loadingTask.promise;
+            console.log(`PDF Loaded: ${pdf.numPages} pages`);
+            renderPage(currentPage);
+            startAutoSlideshow();
+        }
+
+        async function renderPage(pageNum) {
+            const page = await pdf.getPage(pageNum);
+            
+            // Get the container width
+            const containerWidth = document.getElementById('pdf-container').clientWidth;
+
+            // Calculate the scale based on the container width
+            const viewport = page.getViewport({ scale: containerWidth / page.getViewport({ scale: 1 }).width });
+
+            const container = document.getElementById('pdf-container');
+            const canvas = pageNum === currentPage ? currentCanvas : nextCanvas;
+
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            canvas.style.display = 'block';
+
+            const context = canvas.getContext('2d');
+            const renderContext = {
+                canvasContext: context,
+                viewport: viewport
+            };
+
+            await page.render(renderContext).promise;
+
+            console.log(`Page ${pageNum} rendered!`);
+
+            if (pageNum === currentPage) {
+                // Hide next page after current page renders
+                nextCanvas.style.display = 'none';
+            } else {
+                nextCanvas.style.display = 'block'; // Make next page visible
+            }
+        }
+
+        // Event listeners for pagination
+        document.getElementById('prevPage').addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                nextPage = currentPage + 1;
+                renderPage(currentPage);
+            }
+        });
+
+        document.getElementById('nextPage').addEventListener('click', () => {
+            if (currentPage < pdf.numPages) {
+                currentPage++;
+                nextPage = currentPage + 1;
+                renderPage(currentPage);
+            }
+        });
+
+        // Auto-slideshow function (changes page every 15 seconds)
+        function startAutoSlideshow() {
+            setInterval(() => {
+                if (currentPage < pdf.numPages) {
+                    currentPage++;
+                    nextPage = currentPage + 1;
+                } else {
+                    currentPage = 1;
+                    nextPage = currentPage + 1;
+                }
+                renderPage(currentPage);
+            }, 15000); // Change page every 15 seconds
+        }
+
+        loadPDF().catch(console.error);
+    </script>
+</body>
+</html>
